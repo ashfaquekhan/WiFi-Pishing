@@ -6,9 +6,7 @@ SSD1306 display(0x3c, 4, 5);
 
 const int SHORT_PRESS_TIME = 500; 
 const int LONG_PRESS_TIME  = 2000;
-
 ezButton button(2);  
-
 unsigned long pressedTime  = 0;
 unsigned long releasedTime = 0;
 boolean bt = false;
