@@ -54,6 +54,7 @@ SSD1306 display(0x3c, 4, 5);
 bool deAuth = false;
 const int SHORT_PRESS_TIME = 500; 
 const int LONG_PRESS_TIME  = 2000;
+char ssid[20];
 //_________________________________________________________________
 uint8_t packet[26] = {
     0xC0, 0x00,
@@ -168,6 +169,7 @@ void captivePortal()
 }
 void deauthLoop()
 {
+    WiFi.SSID(i).toCharArray(ssid,20);
     deauthDevice(WiFi.BSSID(i), WiFi.channel(i));
     display.clear();
     display.setFont(ArialMT_Plain_16);
@@ -184,9 +186,8 @@ void deauthLoop()
     {
         WiFi.mode(WIFI_AP_STA);// dual mode
         WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-        WiFi.softAP("CaptivePortal");  
+        WiFi.softAP(ssid);  
         Serial.println("");
-      
         dnsServer.start(DNS_PORT, "*", apIP);
         server.on("/", handleRoot);
         server.on("/update", handleForm);
