@@ -169,10 +169,7 @@ void disp()
     display.drawString(10, 50, String(n));
     display.display();
 }
-void captivePortal()
-{
-  
-}
+
 void deauthLoop()
 {
     WiFi.SSID(i).toCharArray(ssid,20);
